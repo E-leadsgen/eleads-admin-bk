@@ -7,17 +7,21 @@
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
+    "db:deploy:dev": "npx prisma migrate dev --name init && npx prisma generate",
+    "db:studio": "npx prisma studio",
     "db:deploy": "npx prisma migrate deploy && npx prisma generate"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "^3.1001.0",
     "@prisma/adapter-pg": "^7.4.0",
     "@prisma/client": "^7.4.0",
     "cors": "^2.8.6",
     "dotenv": "^17.2.4",
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
