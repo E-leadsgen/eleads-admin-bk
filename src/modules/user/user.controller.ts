@@ -11,7 +11,8 @@ class UserController {
       }
       return httpResponse.ok(res, user, "User retrieved successfully");
     } catch (error) {
-      return httpResponse.internalError(res, "Server error");
+      console.log("Server error in getUser", error);
+      return httpResponse.internalError(res, "Server error in getUser");
     }
   }
 
@@ -25,7 +26,8 @@ class UserController {
       const user = await userService.create(req.body);
       return httpResponse.created(res, user, "User created successfully");
     } catch (error) {
-      return httpResponse.internalError(res, "Server error");
+      console.log("Server error in createUser", error);
+      return httpResponse.internalError(res, "Server error in createUser");
     }
   }
 
