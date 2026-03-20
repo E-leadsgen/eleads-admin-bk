@@ -10,7 +10,7 @@ env:
   ECR_REPOSITORY: eleads-admin-backend-ecr
   ECS_CLUSTER: eleads-admin-bk-dev-cluster
   ECS_SERVICE: eleads-admin-bk-dev-task-service
-  CONTAINER_NAME: eleads-admin-bk
+  CONTAINER_NAME: eleads-admin-bk-dev
   IMAGE_TAG: dev
 
 jobs:
