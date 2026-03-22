@@ -13,11 +13,18 @@ datasource db {
   provider = "postgresql"
 }
 
+enum LeadStatus {
+  completed
+  in_progress
+  pending
+  cancel
+  sale
+}
+
 model User {
   id        String     @id @default(uuid())
   name      String
   email     String     @unique
-  role      String
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
   userLeads UserLead[]
@@ -30,26 +37,19 @@ model Lead {
   product   String
   phone     String
   notes     String?
-  revenue   Float
+  status    LeadStatus @default(pending)
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
   userLeads UserLead[]
 }
 
 model UserLead {
-  id           String     @id @default(uuid())
-  idUser       String
-  idLead       String
-  idLeadStatus String
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  user         User       @relation(fields: [idUser], references: [id])
-  lead         Lead       @relation(fields: [idLead], references: [id])
-  leadStatus   LeadStatus @relation(fields: [idLeadStatus], references: [id])
-}
-
-model LeadStatus {
-  id        String     @id @default(uuid())
-  name      String     @unique
-  userLeads UserLead[]
+  id        String   @id @default(uuid())
+  idUser    String
+  idLead    String
+  revenue   Float    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [idUser], references: [id])
+  lead      Lead     @relation(fields: [idLead], references: [id])
 }

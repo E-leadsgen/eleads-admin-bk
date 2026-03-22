@@ -47,9 +47,26 @@ export const signInSchema = z.object({
     .min(1, "Password is required"),
 });
 
+export const resendCodeSchema = z.object({
+  email: z
+    .string({ error: "Email is required" })
+    .trim()
+    .toLowerCase()
+    .check(z.email({ error: "Email is not valid" })),
+});
+
+export const refreshTokenSchema = z.object({
+  refreshToken: z
+    .string({ error: "Refresh token is required" })
+    .trim()
+    .min(1, "Refresh token is required"),
+});
+
 export type SignUpInput = z.infer<typeof signUpSchema>;
 export type ConfirmSignUpInput = z.infer<typeof confirmSignUpSchema>;
 export type SignInInput = z.infer<typeof signInSchema>;
+export type ResendCodeInput = z.infer<typeof resendCodeSchema>;
+export type RefreshTokenInput = z.infer<typeof refreshTokenSchema>;
 
 export function validateSignUp(body: unknown): {
   errors: Record<string, unknown>[] | null;
@@ -90,6 +107,40 @@ export function validateSignIn(body: unknown): {
   data: SignInInput | null;
 } {
   const result = signInSchema.safeParse(body);
+
+  if (!result.success) {
+    const errors = result.error.issues.map((issue) => ({
+      field: issue.path.join("."),
+      message: issue.message,
+    }));
+    return { errors, data: null };
+  }
+
+  return { errors: null, data: result.data };
+}
+
+export function validateResendCode(body: unknown): {
+  errors: Record<string, unknown>[] | null;
+  data: ResendCodeInput | null;
+} {
+  const result = resendCodeSchema.safeParse(body);
+
+  if (!result.success) {
+    const errors = result.error.issues.map((issue) => ({
+      field: issue.path.join("."),
+      message: issue.message,
+    }));
+    return { errors, data: null };
+  }
+
+  return { errors: null, data: result.data };
+}
+
+export function validateRefreshToken(body: unknown): {
+  errors: Record<string, unknown>[] | null;
+  data: RefreshTokenInput | null;
+} {
+  const result = refreshTokenSchema.safeParse(body);
 
   if (!result.success) {
     const errors = result.error.issues.map((issue) => ({

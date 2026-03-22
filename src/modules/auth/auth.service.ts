@@ -2,6 +2,7 @@ import { cognitoService } from "../../lib/aws/cognito";
 import AuthRepository from "./auth.repository";
 import {
   ConfirmSignUpInput,
+  ResendCodeInput,
   SignInInput,
   SignUpInput,
 } from "./auth.validation";
@@ -19,7 +20,6 @@ class AuthService {
     try {
       cognitoSub = await cognitoService.userSignUp(name, email, password);
     } catch (error: unknown) {
-      console.log({ error });
       const message =
         error instanceof Error ? error.message : "Cognito sign-up failed";
       throw new AuthError(message, "COGNITO_ERROR");
@@ -29,7 +29,6 @@ class AuthService {
       id: cognitoSub,
       name,
       email,
-      role: "client",
     });
 
     return user;
@@ -47,6 +46,16 @@ class AuthService {
     }
   }
 
+  async resendCode(email: string) {
+    try {
+      await cognitoService.resendConfirmationCode(email);
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : "Failed to resend code";
+      throw new AuthError(message, "COGNITO_ERROR");
+    }
+  }
+
   async signIn(input: SignInInput) {
     const { email, password } = input;
 
@@ -56,6 +65,17 @@ class AuthService {
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Sign in failed";
       throw new AuthError(message, "COGNITO_ERROR");
+    }
+  }
+
+  async refreshToken(refreshToken: string) {
+    try {
+      const tokens = await cognitoService.refreshToken(refreshToken);
+      return tokens;
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : "Token refresh failed";
+      throw new AuthError(message, "INVALID_REFRESH_TOKEN");
     }
   }
 }

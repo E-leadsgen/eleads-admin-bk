@@ -3,6 +3,8 @@ import { httpResponse } from "../../lib/http-response";
 import authService, { AuthError } from "./auth.service";
 import {
   validateConfirmSignUp,
+  validateRefreshToken,
+  validateResendCode,
   validateSignIn,
   validateSignUp,
 } from "./auth.validation";
@@ -53,6 +55,29 @@ class AuthController {
     }
   }
 
+  async resendCode(req: Request, res: Response) {
+    try {
+      const { errors, data } = validateResendCode(req.body);
+
+      if (errors) {
+        return httpResponse.badRequest(res, "Validation failed", errors);
+      }
+
+      await authService.resendCode(data!.email);
+      return httpResponse.ok(
+        res,
+        null,
+        "Confirmation code resent successfully",
+      );
+    } catch (error) {
+      if (error instanceof AuthError) {
+        return httpResponse.badRequest(res, error.message);
+      }
+
+      return httpResponse.internalError(res, "Server error");
+    }
+  }
+
   async signIn(req: Request, res: Response) {
     try {
       const { errors, data } = validateSignIn(req.body);
@@ -63,6 +88,25 @@ class AuthController {
 
       const tokens = await authService.signIn(data!);
       return httpResponse.ok(res, tokens, "Signed in successfully");
+    } catch (error) {
+      if (error instanceof AuthError) {
+        return httpResponse.unauthorized(res, error.message);
+      }
+
+      return httpResponse.internalError(res, "Server error");
+    }
+  }
+
+  async refreshToken(req: Request, res: Response) {
+    try {
+      const { errors, data } = validateRefreshToken(req.body);
+
+      if (errors) {
+        return httpResponse.badRequest(res, "Validation failed", errors);
+      }
+
+      const tokens = await authService.refreshToken(data!.refreshToken);
+      return httpResponse.ok(res, tokens, "Token refreshed successfully");
     } catch (error) {
       if (error instanceof AuthError) {
         return httpResponse.unauthorized(res, error.message);

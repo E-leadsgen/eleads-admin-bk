@@ -4,7 +4,9 @@ import {
   CognitoIdentityProviderClient,
   ConfirmSignUpCommand,
   InitiateAuthCommand,
+  ResendConfirmationCodeCommand,
   SignUpCommand,
+  NotAuthorizedException,
 } from "@aws-sdk/client-cognito-identity-provider";
 
 const cognitoClient = new CognitoIdentityProviderClient([
@@ -63,6 +65,15 @@ class CognitoService {
     await this.client.send(command);
   }
 
+  async resendConfirmationCode(email: string) {
+    const command = new ResendConfirmationCodeCommand({
+      ClientId: this.clientId,
+      Username: email,
+    });
+
+    await this.client.send(command);
+  }
+
   async signIn(email: string, password: string) {
     const command = new InitiateAuthCommand({
       AuthFlow: AuthFlowType.USER_PASSWORD_AUTH,
@@ -83,6 +94,30 @@ class CognitoService {
       accessToken: response.AuthenticationResult.AccessToken!,
       idToken: response.AuthenticationResult.IdToken!,
       refreshToken: response.AuthenticationResult.RefreshToken!,
+    };
+  }
+
+  async refreshToken(refreshToken: string) {
+    const command = new InitiateAuthCommand({
+      AuthFlow: AuthFlowType.REFRESH_TOKEN_AUTH,
+      ClientId: this.clientId,
+      AuthParameters: {
+        REFRESH_TOKEN: refreshToken,
+      },
+    });
+
+    const response = await this.client.send(command);
+
+    if (!response.AuthenticationResult) {
+      throw new NotAuthorizedException({
+        message: "Refresh token is invalid or expired",
+        $metadata: {},
+      });
+    }
+
+    return {
+      accessToken: response.AuthenticationResult.AccessToken!,
+      idToken: response.AuthenticationResult.IdToken!,
     };
   }
 }

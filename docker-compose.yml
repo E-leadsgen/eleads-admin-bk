@@ -31,12 +31,12 @@ services:
     ports:
       - "3001:3001"
     stdin_open: true
-    tty: true # Keeps the container running for debugging
+    tty: true
     depends_on:
       db:
         condition: service_healthy
     env_file:
-      - .env.prod
+      - .env.development
     networks:
       - prisma-network
 

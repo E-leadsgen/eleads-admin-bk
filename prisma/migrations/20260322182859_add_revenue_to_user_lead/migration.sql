@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "UserLead" ADD COLUMN     "revenue" DOUBLE PRECISION NOT NULL DEFAULT 0;
