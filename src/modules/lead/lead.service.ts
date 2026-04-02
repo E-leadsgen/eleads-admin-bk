@@ -10,8 +10,8 @@ class LeadService {
     return await LeadRepository.findById(id);
   }
 
-  async findAllByUserId(userId: string, query: LeadQueryInput) {
-    return await LeadRepository.findAllByUserId(userId, query);
+  async findAllFiltered(query: LeadQueryInput) {
+    return await LeadRepository.findAllFiltered(query);
   }
 
   async findAll() {

@@ -9,7 +9,6 @@ import {
   validateCreateLead,
   validateUpdateLead,
   validateLeadIdParam,
-  validateUserIdParam,
   validateLeadQuery,
 } from "./lead.validation";
 
@@ -35,19 +34,12 @@ class LeadController {
 
   async getAllLeads(req: Request, res: Response) {
     try {
-      const { errors: paramErrors, data: params } = validateUserIdParam(
-        req.params,
-      );
-      if (paramErrors) {
-        return httpResponse.badRequest(res, "Validation failed", paramErrors);
-      }
-
       const { errors: queryErrors, data: query } = validateLeadQuery(req.query);
       if (queryErrors) {
         return httpResponse.badRequest(res, "Validation failed", queryErrors);
       }
 
-      const result = await leadService.findAllByUserId(params!.userId, query!);
+      const result = await leadService.findAllFiltered(query!);
       return httpResponse.ok(res, result, "Leads retrieved successfully");
     } catch (error) {
       console.log("Server error in getAllLeads", error);

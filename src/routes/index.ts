@@ -3,6 +3,7 @@ import authRoutes from "../modules/auth/auth.routes";
 import userRoutes from "../modules/user/user.routes";
 import leadRoutes from "../modules/lead/lead.routes";
 import userLeadRoutes from "../modules/lead/user-lead.routes";
+import hubspotRoutes from "../modules/hubspot/hubspot.routes";
 import { authenticate, requireGroup } from "../middlewares/auth.middleware";
 
 const router = Router();
@@ -15,6 +16,12 @@ router.use(
   authenticate(),
   requireGroup("eleads-admin"),
   userLeadRoutes,
+);
+router.use(
+  "/hubspot",
+  // authenticate(),
+  // requireGroup("eleads-admin"),
+  hubspotRoutes,
 );
 
 export default router;

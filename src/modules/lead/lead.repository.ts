@@ -11,12 +11,11 @@ class LeadRepository {
     return await prisma.lead.findUnique({ where: { id } });
   }
 
-  async findAllByUserId(userId: string, query: LeadQueryInput) {
+  async findAllFiltered(query: LeadQueryInput) {
     const { page, limit, name, status, dateFrom, dateTo } = query;
     const skip = (page - 1) * limit;
 
     const where: any = {
-      userLeads: { some: { idUser: userId } },
       ...(name ? { name: { contains: name, mode: "insensitive" } } : {}),
       ...(status ? { status } : {}),
       ...(dateFrom || dateTo

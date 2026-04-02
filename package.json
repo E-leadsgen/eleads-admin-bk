@@ -19,6 +19,7 @@
     "@prisma/adapter-pg": "^7.4.0",
     "@prisma/client": "^7.4.0",
     "aws-jwt-verify": "^5.1.1",
+    "axios": "^1.14.0",
     "cors": "^2.8.6",
     "dotenv": "^17.2.4",
     "express": "^5.2.1",

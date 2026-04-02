@@ -4,7 +4,7 @@ import { httpResponse } from "../lib/http-response";
 
 const verifier = CognitoJwtVerifier.create({
   userPoolId: process.env.COGNITO_USER_POOL_ID!,
-  tokenUse: "id",
+  tokenUse: "access",
   clientId: process.env.COGNITO_CLIENT_ID!,
 });
 
@@ -35,7 +35,7 @@ export function authenticate() {
 
       req.user = {
         sub: payload.sub,
-        email: payload.email as string,
+        email: (payload.username as string) ?? "",
         groups: (payload["cognito:groups"] as string[]) || [],
       };
 
