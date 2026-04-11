@@ -10,6 +10,15 @@ export const companyByEmailSchema = z.object({
     .max(320, "Email must be at most 320 characters"),
 });
 
+// ── Company ID param ──
+
+export const companyIdParamSchema = z.object({
+  companyId: z
+    .string({ error: "Company ID is required" })
+    .trim()
+    .min(1, "Company ID is required"),
+});
+
 // ── Company contacts query ──
 
 export const companyContactsQuerySchema = z.object({
@@ -26,10 +35,24 @@ export const companyContactsQuerySchema = z.object({
   after: z.string().trim().optional(),
 });
 
+// ── Company appointments query ──
+
+export const companyAppointmentsQuerySchema = z.object({
+  name: z.string().trim().min(1).max(200).optional(),
+  status: z.string().trim().min(1).max(100).optional(),
+  dateFrom: z.coerce.date().optional(),
+  dateTo: z.coerce.date().optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional().default(10),
+  after: z.string().trim().optional(),
+});
+
 // ── Types ──
 
 export type CompanyByEmailInput = z.infer<typeof companyByEmailSchema>;
 export type CompanyContactsQuery = z.infer<typeof companyContactsQuerySchema>;
+export type CompanyAppointmentsQuery = z.infer<
+  typeof companyAppointmentsQuerySchema
+>;
 
 // ── Validators ──
 
@@ -53,4 +76,12 @@ export function validateCompanyByEmail(body: unknown) {
 
 export function validateCompanyContactsQuery(query: unknown) {
   return parseSchema(companyContactsQuerySchema, query);
+}
+
+export function validateCompanyAppointmentsQuery(query: unknown) {
+  return parseSchema(companyAppointmentsQuerySchema, query);
+}
+
+export function validateCompanyIdParam(params: unknown) {
+  return parseSchema(companyIdParamSchema, params);
 }

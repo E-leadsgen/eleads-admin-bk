@@ -1,5 +1,6 @@
 import { cognitoService } from "../../lib/aws/cognito";
 import AuthRepository from "./auth.repository";
+import HubspotRepository from "../hubspot/hubspot.repository";
 import {
   ConfirmSignUpInput,
   ResendCodeInput,
@@ -16,6 +17,14 @@ class AuthService {
       throw new AuthError("Email is already registered", "EMAIL_EXISTS");
     }
 
+    const company = await HubspotRepository.searchCompanyByEmail(email);
+    if (!company) {
+      throw new AuthError(
+        "No company associated with this email was found",
+        "COMPANY_NOT_FOUND",
+      );
+    }
+
     let cognitoSub: string;
     try {
       cognitoSub = await cognitoService.userSignUp(name, email, password);
@@ -29,6 +38,7 @@ class AuthService {
       id: cognitoSub,
       name,
       email,
+      idCompany: company.id,
     });
 
     return user;
@@ -61,7 +71,19 @@ class AuthService {
 
     try {
       const tokens = await cognitoService.signIn(email, password);
-      return tokens;
+      const user = await AuthRepository.findByEmail(email);
+
+      return {
+        ...tokens,
+        user: user
+          ? {
+              id: user.id,
+              name: user.name,
+              email: user.email,
+              idCompany: user.idCompany,
+            }
+          : null,
+      };
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Sign in failed";
       throw new AuthError(message, "COGNITO_ERROR");

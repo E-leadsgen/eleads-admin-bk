@@ -3,7 +3,8 @@ import hubspotService from "./hubspot.service";
 import { httpResponse } from "../../lib/http-response";
 import {
   validateCompanyByEmail,
-  validateCompanyContactsQuery,
+  validateCompanyIdParam,
+  validateCompanyAppointmentsQuery,
 } from "./hubspot.validation";
 
 class HubspotController {
@@ -16,10 +17,7 @@ class HubspotController {
 
       const company = await hubspotService.findCompanyByEmail(data!.email);
       if (!company) {
-        return httpResponse.notFound(
-          res,
-          "Company not found for that email domain",
-        );
+        return httpResponse.notFound(res, "Company not found for that email");
       }
 
       return httpResponse.ok(res, company, "Company retrieved successfully");
@@ -32,46 +30,73 @@ class HubspotController {
     }
   }
 
-  async getCompanyContacts(req: Request, res: Response) {
+  async getCompanyAppointments(req: Request, res: Response) {
     try {
-      const { errors: emailErrors, data: emailData } = validateCompanyByEmail(
-        req.query,
+      const { errors: paramErrors, data: paramData } = validateCompanyIdParam(
+        req.params,
       );
-      if (emailErrors) {
-        return httpResponse.badRequest(res, "Validation failed", emailErrors);
+      if (paramErrors) {
+        return httpResponse.badRequest(res, "Validation failed", paramErrors);
       }
 
-      const { errors: queryErrors, data: query } = validateCompanyContactsQuery(
-        req.query,
-      );
+      const { errors: queryErrors, data: queryData } =
+        validateCompanyAppointmentsQuery(req.query);
       if (queryErrors) {
         return httpResponse.badRequest(res, "Validation failed", queryErrors);
       }
 
-      const company = await hubspotService.findCompanyByEmail(emailData!.email);
-      console.log({ company });
-      if (!company) {
-        return httpResponse.notFound(
-          res,
-          "Company not found for that email domain",
-        );
+      const result = await hubspotService.getCompanyAppointmentsWithContacts(
+        paramData!.companyId,
+        queryData!,
+      );
+
+      if (!result) {
+        return httpResponse.notFound(res, "Company not found");
       }
 
-      const contacts = await hubspotService.findCompanyContacts(
-        company.id,
-        query!,
+      return httpResponse.ok(
+        res,
+        result,
+        "Company appointments retrieved successfully",
+      );
+    } catch (error) {
+      console.log("Server error in getCompanyAppointments", error);
+      return httpResponse.internalError(
+        res,
+        "Server error in getCompanyAppointments",
+      );
+    }
+  }
+  async getCompanyLeadMetrics(req: Request, res: Response) {
+    try {
+      const { errors: paramErrors, data: paramData } = validateCompanyIdParam(
+        req.params,
+      );
+      if (paramErrors) {
+        return httpResponse.badRequest(res, "Validation failed", paramErrors);
+      }
+
+      const { errors: queryErrors, data: queryData } =
+        validateCompanyAppointmentsQuery(req.query);
+      if (queryErrors) {
+        return httpResponse.badRequest(res, "Validation failed", queryErrors);
+      }
+
+      const result = await hubspotService.getCompanyLeadMetrics(
+        paramData!.companyId,
+        queryData!,
       );
 
       return httpResponse.ok(
         res,
-        { company, contacts },
-        "Company contacts retrieved successfully",
+        result,
+        "Company lead metrics retrieved successfully",
       );
     } catch (error) {
-      console.log("Server error in getCompanyContacts", error);
+      console.log("Server error in getCompanyLeadMetrics", error);
       return httpResponse.internalError(
         res,
-        "Server error in getCompanyContacts",
+        "Server error in getCompanyLeadMetrics",
       );
     }
   }

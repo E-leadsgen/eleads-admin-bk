@@ -25,6 +25,8 @@ class AuthController {
         switch (error.code) {
           case "EMAIL_EXISTS":
             return httpResponse.conflict(res, error.message);
+          case "COMPANY_NOT_FOUND":
+            return httpResponse.notFound(res, error.message);
           case "COGNITO_ERROR":
             return httpResponse.badRequest(res, error.message);
           default:

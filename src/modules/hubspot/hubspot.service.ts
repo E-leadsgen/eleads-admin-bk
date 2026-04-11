@@ -1,18 +1,116 @@
-import type { CompanyContactsQuery } from "./hubspot.validation";
+import type { CompanyAppointmentsQuery } from "./hubspot.validation";
 import HubspotRepository from "./hubspot.repository";
 
+type AppointmentContact = {
+  idContact: string;
+  idAppointment: string;
+  firstname: string | null;
+  lastname: string | null;
+  email: string | null;
+  status: string | null;
+  revenue: string | null;
+  product: string | null;
+  productDescription: string | null;
+  phone: string | null;
+  startAt: string;
+};
+
+type PeriodMetrics = {
+  totalLeads: number;
+  closingRate: number;
+  totalRevenue: number;
+};
+
+const MONTH_NAMES = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+] as const;
+
 class HubspotService {
-  private extractDomain(email: string): string {
-    const domain = email.split("@")[1];
-    if (!domain) {
-      throw new Error("Invalid email format");
-    }
-    return domain.toLowerCase();
+  private computeMetrics(contacts: AppointmentContact[]): PeriodMetrics {
+    const totalLeads = contacts.length;
+    const withRevenue = contacts.filter(
+      (c) => c.revenue !== null && parseFloat(c.revenue) > 0,
+    );
+    const closingRate =
+      totalLeads > 0 ? (withRevenue.length * 100) / totalLeads : 0;
+    const totalRevenue = withRevenue.reduce(
+      (sum, c) => sum + parseFloat(c.revenue!),
+      0,
+    );
+    return { totalLeads, closingRate, totalRevenue };
   }
 
+  private getPreviousMonthRange(reference: Date): {
+    prevDateFrom: Date;
+    prevDateTo: Date;
+  } {
+    const year = reference.getFullYear();
+    const month = reference.getMonth(); // 0-indexed
+    // day 0 of current month = last day of previous month
+    const prevDateTo = new Date(year, month, 0, 23, 59, 59, 999);
+    const prevDateFrom = new Date(
+      prevDateTo.getFullYear(),
+      prevDateTo.getMonth(),
+      1,
+    );
+    return { prevDateFrom, prevDateTo };
+  }
+
+  private groupByMonth(
+    contacts: AppointmentContact[],
+  ): { month: string; total: number; sold: number }[] {
+    const monthMap = new Map<number, { total: number; sold: number }>();
+    for (const c of contacts) {
+      const monthIndex = new Date(c.startAt).getMonth();
+      const entry = monthMap.get(monthIndex) ?? { total: 0, sold: 0 };
+      entry.total++;
+      if (c.status === "Completed") entry.sold++;
+      monthMap.set(monthIndex, entry);
+    }
+    return MONTH_NAMES.map((name, i) => ({
+      month: name,
+      total: monthMap.get(i)?.total ?? 0,
+      sold: monthMap.get(i)?.sold ?? 0,
+    }));
+  }
+
+  private groupByStatus(
+    contacts: AppointmentContact[],
+  ): { status: string; percentage: number }[] {
+    const STATUSES = [
+      "Scheduled",
+      "To Assign",
+      "Still Working",
+      "Completed",
+      "Canceled",
+    ];
+    const total = contacts.length;
+    const statusCount = new Map<string, number>();
+    for (const c of contacts) {
+      const key = c.status ?? "Unknown";
+      if (STATUSES.includes(key)) {
+        statusCount.set(key, (statusCount.get(key) ?? 0) + 1);
+      }
+    }
+    return STATUSES.map((status) => ({
+      status,
+      percentage:
+        total > 0 ? ((statusCount.get(status) ?? 0) * 100) / total : 0,
+    }));
+  }
   async findCompanyByEmail(email: string) {
-    const domain = this.extractDomain(email);
-    const company = await HubspotRepository.searchCompanyByDomain(domain);
+    const company = await HubspotRepository.searchCompanyByEmail(email);
 
     if (!company) return null;
 
@@ -24,27 +122,124 @@ class HubspotService {
     };
   }
 
-  async findCompanyContacts(companyId: string, query: CompanyContactsQuery) {
-    const { name, email, dateFrom, dateTo, limit, after } = query;
+  async getCompanyAppointmentsWithContacts(
+    companyId: string,
+    filters: CompanyAppointmentsQuery,
+  ) {
+    // 1. Get appointments for the company
+    const appointments = await HubspotRepository.getCompanyAppointments(
+      companyId,
+      {
+        dateFrom: filters.dateFrom,
+        dateTo: filters.dateTo,
+        limit: filters.limit,
+        after: filters.after,
+      },
+    );
+    if (!appointments || appointments.length === 0) return null;
 
-    const result = await HubspotRepository.searchContactsByCompany(companyId, {
-      ...(name ? { name } : {}),
-      ...(email ? { email } : {}),
-      ...(dateFrom ? { dateFrom } : {}),
-      ...(dateTo ? { dateTo } : {}),
-      limit,
-      ...(after ? { after } : {}),
-    });
+    // 2. Get contacts associated with these appointments
+    const appointmentIds = appointments.map((apt) => apt.id);
+    const contacts =
+      await HubspotRepository.searchContactsByAppointmentIds(appointmentIds);
+    if (contacts.length === 0) return [];
+
+    // 3. Merge appointments with contacts by index
+    const results: AppointmentContact[] = appointments
+      .slice(0, contacts.length)
+      .map((appointment, i) => {
+        const contact = contacts[i]!;
+        return {
+          idContact: contact.id,
+          idAppointment: appointment.id,
+          firstname: contact.firstname,
+          lastname: contact.lastname,
+          email: contact.email,
+          status: appointment.appointmentStatus,
+          product: contact.product,
+          productDescription: contact.productDescription,
+          phone: contact.phone,
+          revenue: appointment.revenue,
+          startAt: appointment.startAt,
+        };
+      });
+
+    // 4. Apply contact filters
+    let filtered = results;
+    if (filters.name) {
+      const name = filters.name.toLowerCase();
+      filtered = filtered.filter(
+        (r) =>
+          r.firstname?.toLowerCase().includes(name) ||
+          r.lastname?.toLowerCase().includes(name),
+      );
+    }
+    if (filters.status) {
+      filtered = filtered.filter((r) => r.status === filters.status);
+    }
+
+    return filtered;
+  }
+
+  async getCompanyLeadMetrics(
+    companyId: string,
+    filters: CompanyAppointmentsQuery,
+  ) {
+    // 1st call: current period (filtered)
+    const current =
+      (await this.getCompanyAppointmentsWithContacts(companyId, filters)) ?? [];
+    const currentMetrics = this.computeMetrics(current);
+
+    // Derive previous month range from dateFrom
+    const reference = filters.dateFrom ?? filters.dateTo ?? new Date();
+    const { prevDateFrom, prevDateTo } = this.getPreviousMonthRange(reference);
+
+    // 2nd call: previous month
+    const previous =
+      (await this.getCompanyAppointmentsWithContacts(companyId, {
+        ...filters,
+        dateFrom: prevDateFrom,
+        dateTo: prevDateTo,
+      })) ?? [];
+    const previousMetrics = this.computeMetrics(previous);
+
+    // 3rd call: full current year
+    const year = reference.getFullYear();
+    const annualContacts =
+      (await this.getCompanyAppointmentsWithContacts(companyId, {
+        ...filters,
+        dateFrom: new Date(year, 0, 1),
+        dateTo: new Date(year, 11, 31, 23, 59, 59, 999),
+        name: undefined,
+        status: undefined,
+      })) ?? [];
+
+    // Growth calculation
+    const calcGrowth = (curr: number, prev: number) =>
+      curr === 0 ? 0 : ((curr - prev) * 100) / curr;
 
     return {
-      total: result.total,
-      contacts: result.results.map((c) => ({
-        id: c.id,
-        properties: c.properties,
-        createdAt: c.createdAt,
-        updatedAt: c.updatedAt,
-      })),
-      paging: result.paging,
+      metrics: {
+        totalLeads: currentMetrics.totalLeads,
+        closingRate: currentMetrics.closingRate,
+        totalRevenue: currentMetrics.totalRevenue,
+        leadsPercentageGrowth: calcGrowth(
+          currentMetrics.totalLeads,
+          previousMetrics.totalLeads,
+        ),
+        closingRatePercentageGrowth: calcGrowth(
+          currentMetrics.closingRate,
+          previousMetrics.closingRate,
+        ),
+        revenuePercentageGrowth: calcGrowth(
+          currentMetrics.totalRevenue,
+          previousMetrics.totalRevenue,
+        ),
+      },
+      annual: this.groupByMonth(annualContacts),
+      status: this.groupByStatus(current),
+      totalFiltered: current.length,
+      totalAnnual: annualContacts.length,
     };
   }
 }

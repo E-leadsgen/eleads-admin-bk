@@ -25,6 +25,7 @@ model User {
   id        String     @id @default(uuid())
   name      String
   email     String     @unique
+  idCompany String?
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
   userLeads UserLead[]
