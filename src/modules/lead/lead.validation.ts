@@ -17,6 +17,14 @@ export const createLeadSchema = z.object({
     .min(2, "Name must be at least 2 characters")
     .max(200, "Name must be at most 200 characters"),
 
+  email: z
+    .string()
+    .trim()
+    .email("Email must be a valid email address")
+    .max(255, "Email must be at most 255 characters")
+    .nullable()
+    .optional(),
+
   address: z
     .string({ error: "Address is required" })
     .trim()
@@ -56,6 +64,14 @@ export const updateLeadSchema = z.object({
     .trim()
     .min(2, "Name must be at least 2 characters")
     .max(200, "Name must be at most 200 characters")
+    .optional(),
+
+  email: z
+    .string()
+    .trim()
+    .email("Email must be a valid email address")
+    .max(255, "Email must be at most 255 characters")
+    .nullable()
     .optional(),
 
   address: z
@@ -102,6 +118,7 @@ export const leadQuerySchema = z.object({
   page: z.coerce.number().int().min(1).optional().default(1),
   limit: z.coerce.number().int().min(1).max(100).optional().default(10),
   name: z.string().trim().optional(),
+  email: z.string().trim().optional(),
   status: z
     .enum(["completed", "in_progress", "pending", "cancel", "sale"])
     .optional(),

@@ -12,11 +12,12 @@ class LeadRepository {
   }
 
   async findAllFiltered(query: LeadQueryInput) {
-    const { page, limit, name, status, dateFrom, dateTo } = query;
+    const { page, limit, name, email, status, dateFrom, dateTo } = query;
     const skip = (page - 1) * limit;
 
     const where: any = {
       ...(name ? { name: { contains: name, mode: "insensitive" } } : {}),
+      ...(email ? { email: { contains: email, mode: "insensitive" } } : {}),
       ...(status ? { status } : {}),
       ...(dateFrom || dateTo
         ? {
@@ -40,6 +41,8 @@ class LeadRepository {
 
     return {
       items,
+      page,
+      limit,
       hasNextPage: skip + items.length < total,
     };
   }

@@ -87,7 +87,7 @@ class HubspotService {
 
   private groupByStatus(
     contacts: AppointmentContact[],
-  ): { status: string; percentage: number }[] {
+  ): { status: string; percentage: number; total: number }[] {
     const STATUSES = [
       "Scheduled",
       "To Assign",
@@ -95,7 +95,7 @@ class HubspotService {
       "Completed",
       "Canceled",
     ];
-    const total = contacts.length;
+    const totalContacts = contacts.length;
     const statusCount = new Map<string, number>();
     for (const c of contacts) {
       const key = c.status ?? "Unknown";
@@ -103,11 +103,14 @@ class HubspotService {
         statusCount.set(key, (statusCount.get(key) ?? 0) + 1);
       }
     }
-    return STATUSES.map((status) => ({
-      status,
-      percentage:
-        total > 0 ? ((statusCount.get(status) ?? 0) * 100) / total : 0,
-    }));
+    return STATUSES.map((status) => {
+      const count = statusCount.get(status) ?? 0;
+      return {
+        status,
+        percentage: totalContacts > 0 ? (count * 100) / totalContacts : 0,
+        total: count,
+      };
+    });
   }
   async findCompanyByEmail(email: string) {
     const company = await HubspotRepository.searchCompanyByEmail(email);
