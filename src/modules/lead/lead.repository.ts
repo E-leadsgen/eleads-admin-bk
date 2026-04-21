@@ -43,6 +43,8 @@ class LeadRepository {
       items,
       page,
       limit,
+      total,
+      totalPages: Math.ceil(total / limit),
       hasNextPage: skip + items.length < total,
     };
   }
