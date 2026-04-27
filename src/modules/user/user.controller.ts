@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import userService from "./user.service";
 import { httpResponse } from "../../lib/http-response";
+import { validateGetAllUsersQuery } from "./user.validation";
 
 class UserController {
   async getUser(req: Request, res: Response) {
@@ -13,6 +14,21 @@ class UserController {
     } catch (error) {
       console.log("Server error in getUser", error);
       return httpResponse.internalError(res, "Server error in getUser");
+    }
+  }
+
+  async getAllUsers(req: Request, res: Response) {
+    try {
+      const { errors, data: query } = validateGetAllUsersQuery(req.query);
+      if (errors) {
+        return httpResponse.badRequest(res, "Validation failed", errors);
+      }
+
+      const result = await userService.findAllFiltered(query!);
+      return httpResponse.ok(res, result, "Users retrieved successfully");
+    } catch (error) {
+      console.log("Server error in getAllUsers", error);
+      return httpResponse.internalError(res, "Server error in getAllUsers");
     }
   }
 

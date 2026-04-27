@@ -4,6 +4,7 @@ import controller from "./user.controller";
 
 const router = Router();
 
+router.get("/", controller.getAllUsers);
 router.get("/:email", controller.getUser);
 router.post("/", controller.createUser);
 

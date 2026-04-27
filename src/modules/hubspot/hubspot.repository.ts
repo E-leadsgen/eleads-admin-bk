@@ -166,7 +166,10 @@ class HubspotRepository {
   async getCompanyAppointments(
     companyId: string,
     filters?: AppointmentsQuery,
-  ): Promise<NormalizedAppointment[] | null> {
+  ): Promise<{
+    items: NormalizedAppointment[];
+    paging?: { next?: { after: string } };
+  } | null> {
     const body: HubSpotSearchRequest = {
       filterGroups: [
         {
@@ -217,17 +220,20 @@ class HubspotRepository {
         (r) => r.label === label,
       )?.stages;
 
-      return response.results.map((appointment) => ({
-        id: appointment.id,
-        revenue: appointment.properties.hpg_contract_amount,
-        startAt: appointment.properties.hs_appointment_start,
-        createdAt: appointment.properties.hs_createdate,
-        url: appointment.url,
-        appointmentStatus:
-          b2cStages?.find(
-            (s) => s.id === appointment.properties.hs_pipeline_stage,
-          )?.label ?? null,
-      }));
+      return {
+        items: response.results.map((appointment) => ({
+          id: appointment.id,
+          revenue: appointment.properties.hpg_contract_amount,
+          startAt: appointment.properties.hs_appointment_start,
+          createdAt: appointment.properties.hs_createdate,
+          url: appointment.url,
+          appointmentStatus:
+            b2cStages?.find(
+              (s) => s.id === appointment.properties.hs_pipeline_stage,
+            )?.label ?? null,
+        })),
+        paging: response.paging,
+      };
     } catch (error: any) {
       if (error?.response?.status === 404) return null;
       throw error;

@@ -1,5 +1,6 @@
 import { UserCreateInput } from "../../../generated/prisma/models";
 import UserRepository from "./user.repository";
+import type { GetAllUsersQuery } from "./user.validation";
 
 class UserService {
   async findByEmail(email: string) {
@@ -8,6 +9,10 @@ class UserService {
 
   async create(data: UserCreateInput) {
     return await UserRepository.create(data);
+  }
+
+  async findAllFiltered(query: GetAllUsersQuery) {
+    return await UserRepository.findAllFiltered(query);
   }
 }
 

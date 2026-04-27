@@ -1,25 +1,11 @@
 import type { CompanyAppointmentsQuery } from "./hubspot.validation";
+import type {
+  AppointmentContact,
+  AppointmentStatus,
+  PaginatedAppointments,
+  PeriodMetrics,
+} from "./hubspot.types";
 import HubspotRepository from "./hubspot.repository";
-
-type AppointmentContact = {
-  idContact: string;
-  idAppointment: string;
-  firstname: string | null;
-  lastname: string | null;
-  email: string | null;
-  status: string | null;
-  revenue: string | null;
-  product: string | null;
-  productDescription: string | null;
-  phone: string | null;
-  startAt: string;
-};
-
-type PeriodMetrics = {
-  totalLeads: number;
-  closingRate: number;
-  totalRevenue: number;
-};
 
 const MONTH_NAMES = [
   "January",
@@ -39,15 +25,11 @@ const MONTH_NAMES = [
 class HubspotService {
   private computeMetrics(contacts: AppointmentContact[]): PeriodMetrics {
     const totalLeads = contacts.length;
-    const withRevenue = contacts.filter(
-      (c) => c.revenue !== null && parseFloat(c.revenue) > 0,
-    );
-    const closingRate =
-      totalLeads > 0 ? (withRevenue.length * 100) / totalLeads : 0;
-    const totalRevenue = withRevenue.reduce(
-      (sum, c) => sum + parseFloat(c.revenue!),
-      0,
-    );
+    const sales = contacts.filter((c) => c.status === "Sale");
+    const closingRate = totalLeads > 0 ? (sales.length * 100) / totalLeads : 0;
+    const totalRevenue = contacts
+      .filter((c) => c.revenue !== null && parseFloat(c.revenue) > 0)
+      .reduce((sum, c) => sum + parseFloat(c.revenue!), 0);
     return { totalLeads, closingRate, totalRevenue };
   }
 
@@ -88,19 +70,17 @@ class HubspotService {
   private groupByStatus(
     contacts: AppointmentContact[],
   ): { status: string; percentage: number; total: number }[] {
-    const STATUSES = [
-      "Scheduled",
-      "To Assign",
-      "Still Working",
+    const STATUSES: AppointmentStatus[] = [
+      "Sale",
       "Completed",
       "Canceled",
+      "Still Working",
     ];
     const totalContacts = contacts.length;
-    const statusCount = new Map<string, number>();
+    const statusCount = new Map<AppointmentStatus, number>();
     for (const c of contacts) {
-      const key = c.status ?? "Unknown";
-      if (STATUSES.includes(key)) {
-        statusCount.set(key, (statusCount.get(key) ?? 0) + 1);
+      if (c.status !== null && STATUSES.includes(c.status)) {
+        statusCount.set(c.status, (statusCount.get(c.status) ?? 0) + 1);
       }
     }
     return STATUSES.map((status) => {
@@ -128,9 +108,9 @@ class HubspotService {
   async getCompanyAppointmentsWithContacts(
     companyId: string,
     filters: CompanyAppointmentsQuery,
-  ) {
+  ): Promise<PaginatedAppointments | null> {
     // 1. Get appointments for the company
-    const appointments = await HubspotRepository.getCompanyAppointments(
+    const appointmentsResult = await HubspotRepository.getCompanyAppointments(
       companyId,
       {
         dateFrom: filters.dateFrom,
@@ -139,13 +119,16 @@ class HubspotService {
         after: filters.after,
       },
     );
-    if (!appointments || appointments.length === 0) return null;
+    if (!appointmentsResult) return null;
+    const appointments = appointmentsResult.items;
+    if (appointments.length === 0) return null;
 
     // 2. Get contacts associated with these appointments
     const appointmentIds = appointments.map((apt) => apt.id);
     const contacts =
       await HubspotRepository.searchContactsByAppointmentIds(appointmentIds);
-    if (contacts.length === 0) return [];
+    if (contacts.length === 0)
+      return { items: [], paging: appointmentsResult.paging };
 
     // 3. Merge appointments with contacts by index
     const results: AppointmentContact[] = appointments
@@ -158,7 +141,7 @@ class HubspotService {
           firstname: contact.firstname,
           lastname: contact.lastname,
           email: contact.email,
-          status: appointment.appointmentStatus,
+          status: appointment.appointmentStatus as AppointmentStatus | null,
           product: contact.product,
           productDescription: contact.productDescription,
           phone: contact.phone,
@@ -181,7 +164,7 @@ class HubspotService {
       filtered = filtered.filter((r) => r.status === filters.status);
     }
 
-    return filtered;
+    return { items: filtered, paging: appointmentsResult.paging };
   }
 
   async getCompanyLeadMetrics(
@@ -189,8 +172,11 @@ class HubspotService {
     filters: CompanyAppointmentsQuery,
   ) {
     // 1st call: current period (filtered)
-    const current =
-      (await this.getCompanyAppointmentsWithContacts(companyId, filters)) ?? [];
+    const currentResult = await this.getCompanyAppointmentsWithContacts(
+      companyId,
+      filters,
+    );
+    const current = currentResult?.items ?? [];
     const currentMetrics = this.computeMetrics(current);
 
     // Derive previous month range from dateFrom
@@ -198,24 +184,30 @@ class HubspotService {
     const { prevDateFrom, prevDateTo } = this.getPreviousMonthRange(reference);
 
     // 2nd call: previous month
-    const previous =
-      (await this.getCompanyAppointmentsWithContacts(companyId, {
+    const previousResult = await this.getCompanyAppointmentsWithContacts(
+      companyId,
+      {
         ...filters,
         dateFrom: prevDateFrom,
         dateTo: prevDateTo,
-      })) ?? [];
+      },
+    );
+    const previous = previousResult?.items ?? [];
     const previousMetrics = this.computeMetrics(previous);
 
     // 3rd call: full current year
     const year = reference.getFullYear();
-    const annualContacts =
-      (await this.getCompanyAppointmentsWithContacts(companyId, {
+    const annualResult = await this.getCompanyAppointmentsWithContacts(
+      companyId,
+      {
         ...filters,
         dateFrom: new Date(year, 0, 1),
         dateTo: new Date(year, 11, 31, 23, 59, 59, 999),
         name: undefined,
         status: undefined,
-      })) ?? [];
+      },
+    );
+    const annualContacts = annualResult?.items ?? [];
 
     // Growth calculation
     const calcGrowth = (curr: number, prev: number) =>
