@@ -232,7 +232,7 @@ class HubspotRepository {
               (s) => s.id === appointment.properties.hs_pipeline_stage,
             )?.label ?? null,
         })),
-        paging: response.paging,
+        ...(response.paging !== undefined && { paging: response.paging }),
       };
     } catch (error: any) {
       if (error?.response?.status === 404) return null;

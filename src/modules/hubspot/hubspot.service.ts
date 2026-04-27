@@ -128,7 +128,12 @@ class HubspotService {
     const contacts =
       await HubspotRepository.searchContactsByAppointmentIds(appointmentIds);
     if (contacts.length === 0)
-      return { items: [], paging: appointmentsResult.paging };
+      return {
+        items: [],
+        ...(appointmentsResult.paging !== undefined && {
+          paging: appointmentsResult.paging,
+        }),
+      };
 
     // 3. Merge appointments with contacts by index
     const results: AppointmentContact[] = appointments
@@ -164,7 +169,12 @@ class HubspotService {
       filtered = filtered.filter((r) => r.status === filters.status);
     }
 
-    return { items: filtered, paging: appointmentsResult.paging };
+    return {
+      items: filtered,
+      ...(appointmentsResult.paging !== undefined && {
+        paging: appointmentsResult.paging,
+      }),
+    };
   }
 
   async getCompanyLeadMetrics(
