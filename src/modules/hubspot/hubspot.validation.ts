@@ -31,7 +31,7 @@ export const companyContactsQuerySchema = z.object({
     .optional(),
   dateFrom: z.coerce.date().optional(),
   dateTo: z.coerce.date().optional(),
-  limit: z.coerce.number().int().min(1).max(100).optional().default(10),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
   after: z.string().trim().optional(),
 });
 
@@ -42,7 +42,7 @@ export const companyAppointmentsQuerySchema = z.object({
   status: z.string().trim().min(1).max(100).optional(),
   dateFrom: z.coerce.date().optional(),
   dateTo: z.coerce.date().optional(),
-  limit: z.coerce.number().int().min(1).max(100).optional().default(10),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
   after: z.string().trim().optional(),
 });
 
@@ -58,6 +58,8 @@ export type CompanyAppointmentsQuery = z.infer<
 
 function parseSchema<T>(schema: z.ZodType<T>, data: unknown) {
   const result = (schema as z.ZodObject<any>).safeParse(data);
+
+  console.log({ result });
 
   if (!result.success) {
     const errors = result.error.issues.map((issue) => ({

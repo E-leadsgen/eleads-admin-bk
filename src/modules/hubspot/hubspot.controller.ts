@@ -72,6 +72,7 @@ class HubspotController {
       const { errors: paramErrors, data: paramData } = validateCompanyIdParam(
         req.params,
       );
+
       if (paramErrors) {
         return httpResponse.badRequest(res, "Validation failed", paramErrors);
       }

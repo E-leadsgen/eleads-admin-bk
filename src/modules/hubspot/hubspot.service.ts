@@ -186,6 +186,7 @@ class HubspotService {
       companyId,
       filters,
     );
+
     const current = currentResult?.items ?? [];
     const currentMetrics = this.computeMetrics(current);
 

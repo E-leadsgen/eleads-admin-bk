@@ -83,7 +83,7 @@ type HubSpotSearchResponse = {
 type AppointmentsQuery = {
   dateFrom?: Date | undefined;
   dateTo?: Date | undefined;
-  limit: number;
+  limit?: number | undefined;
   after?: string | undefined;
 };
 
@@ -198,7 +198,7 @@ class HubspotRepository {
         "hpg_contract_amount",
         "hs_createdate",
       ],
-      limit: filters?.limit ?? 20,
+      limit: filters?.limit ?? 100,
       ...(filters?.after !== undefined && { after: filters.after }),
     };
 
