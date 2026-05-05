@@ -13,6 +13,7 @@ type HubSpotSearchFilter = {
 type HubSpotSearchRequest = {
   filterGroups: { filters: HubSpotSearchFilter[] }[];
   properties?: string[];
+  sorts?: { propertyName: string; direction: "ASCENDING" | "DESCENDING" }[];
   limit?: number;
   after?: string;
 };
@@ -45,17 +46,6 @@ type HubspotAppointmentSearchResponse = {
   paging?: { next?: { after: string } };
 };
 
-type AppointmentStatusResponse = {
-  results: {
-    label: string;
-    id: string;
-    stages: {
-      label: string;
-      id: string;
-    }[];
-  }[];
-};
-
 type HubspotContact = {
   id: string;
   properties: {
@@ -80,9 +70,18 @@ type HubSpotSearchResponse = {
   paging?: { next?: { after: string } };
 };
 
+const APPOINTMENT_STATUSES = [
+  { id: "1985917637", label: "Still Working" },
+  { id: "1998960329", label: "Completed" },
+  { id: "2064242394", label: "Canceled" },
+  { id: "3502094039", label: "Sale" },
+] as const;
+
 type AppointmentsQuery = {
   dateFrom?: Date | undefined;
   dateTo?: Date | undefined;
+  status?: string | undefined;
+  sortOrder?: "ASCENDING" | "DESCENDING" | undefined;
   limit?: number | undefined;
   after?: string | undefined;
 };
@@ -151,6 +150,12 @@ class HubspotRepository {
           ],
         },
       ],
+      sorts: [
+        {
+          propertyName: "hs_appointment_start",
+          direction: "DESCENDING",
+        },
+      ],
       properties: ["name", "domain", "company_email"],
       limit: 1,
     };
@@ -179,6 +184,7 @@ class HubspotRepository {
               operator: "EQ",
               value: companyId,
             },
+
             ...(filters?.dateTo && filters?.dateFrom
               ? [
                   {
@@ -189,7 +195,36 @@ class HubspotRepository {
                   },
                 ]
               : []),
+
+            ...(filters?.status
+              ? (() => {
+                  const match = APPOINTMENT_STATUSES.find(
+                    (s) => s.label === filters.status,
+                  );
+                  return match
+                    ? [
+                        {
+                          propertyName: "hs_pipeline_stage",
+                          operator: "EQ",
+                          value: match.id,
+                        },
+                      ]
+                    : [];
+                })()
+              : [
+                  {
+                    propertyName: "hs_pipeline_stage",
+                    operator: "IN",
+                    values: APPOINTMENT_STATUSES.map((s) => s.id),
+                  },
+                ]),
           ],
+        },
+      ],
+      sorts: [
+        {
+          propertyName: "hs_appointment_start",
+          direction: filters?.sortOrder ?? "DESCENDING",
         },
       ],
       properties: [
@@ -208,17 +243,7 @@ class HubspotRepository {
         { method: "POST", body: JSON.stringify(body) },
       );
 
-      const appointmentStatus = await hubspotFetch<AppointmentStatusResponse>(
-        "/crm/v3/pipelines/appointments",
-      );
-
       if (!response.results || !response.results.length) return null;
-      if (appointmentStatus.results.length === 0) return null;
-
-      const label = "B2C | Home Pro Guides";
-      const b2cStages = appointmentStatus.results.find(
-        (r) => r.label === label,
-      )?.stages;
 
       return {
         items: response.results.map((appointment) => ({
@@ -228,7 +253,7 @@ class HubspotRepository {
           createdAt: appointment.properties.hs_createdate,
           url: appointment.url,
           appointmentStatus:
-            b2cStages?.find(
+            APPOINTMENT_STATUSES.find(
               (s) => s.id === appointment.properties.hs_pipeline_stage,
             )?.label ?? null,
         })),

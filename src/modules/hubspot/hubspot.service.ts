@@ -113,6 +113,8 @@ class HubspotService {
     const appointmentsResult = await HubspotRepository.getCompanyAppointments(
       companyId,
       {
+        status: filters.status,
+        sortOrder: filters.sortOrder,
         dateFrom: filters.dateFrom,
         dateTo: filters.dateTo,
         limit: filters.limit,
@@ -121,12 +123,14 @@ class HubspotService {
     );
     if (!appointmentsResult) return null;
     const appointments = appointmentsResult.items;
+
     if (appointments.length === 0) return null;
 
     // 2. Get contacts associated with these appointments
     const appointmentIds = appointments.map((apt) => apt.id);
     const contacts =
       await HubspotRepository.searchContactsByAppointmentIds(appointmentIds);
+
     if (contacts.length === 0)
       return {
         items: [],
@@ -164,9 +168,6 @@ class HubspotService {
           r.firstname?.toLowerCase().includes(name) ||
           r.lastname?.toLowerCase().includes(name),
       );
-    }
-    if (filters.status) {
-      filtered = filtered.filter((r) => r.status === filters.status);
     }
 
     return {
